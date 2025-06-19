@@ -1,10 +1,18 @@
-# ₿ ML-prediction ₿
+# ₿itcoin MachineLearning prediction ₿
+(or any other selected coin)
 
 ## Disclaimer ⚠️
 This repository is provided for educational and informational purposes only. It does not constitute financial, investment, or trading advice. You should conduct your own due diligence and consult a professional advisor before making any financial decisions.
 
 ## Description 📝
-This pipeline fetches BTC/USDT candlestick data across 1h, 2h, 4h, 12h and 1d timeframes, computes a variety of technical indicators (`SMA`, `RSI`, `MACD`, `ATR`, `Bollinger Bands`, `EWMA`, etc.), and builds classification models (`Logistic Regression`, `Random Forest`, `XGBoost`) to forecast whether the price will go **UP** or **DOWN** in the next 4 hours. It automatically tunes hyperparameters, evaluates fit (over-/under-fitting), and—if the chosen model is overfitted—iteratively simplifies it up to three times.
+This is a humble attempt to get a prediction for BTC/USDT (or any other selected coin)
+
+It collects candlestick data across 1h, 2h, 4h, 12h and 1d timeframes,
+computes a variety of technical indicators (`SMA`, `RSI`, `MACD`, `ATR`, `Bollinger Bands`, `EWMA`, etc.),
+builds classification models (`Logistic Regression`, `Random Forest`, `XGBoost`)
+to forecast whether the price will go **UP** or **DOWN** in the next 4 hours.
+It automatically tunes hyperparameters, evaluates fit (over-/under-fitting),
+and—if the chosen model is overfitted—iteratively simplifies it up to three times.
 
 ## Features ✨
 - Multi-timeframe data merge  
