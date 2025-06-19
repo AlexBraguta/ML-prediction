@@ -7,12 +7,12 @@ This repository is provided for educational and informational purposes only. It 
 ## Description 📝
 This is a humble attempt to get a prediction for BTC/USDT (or any other selected coin)
 
-It collects candlestick data across 1h, 2h, 4h, 12h and 1d timeframes,
-computes a variety of technical indicators (`SMA`, `RSI`, `MACD`, `ATR`, `Bollinger Bands`, `EWMA`, etc.),
-builds classification models (`Logistic Regression`, `Random Forest`, `XGBoost`)
-to forecast whether the price will go **UP** or **DOWN** in the next 4 hours.
-It automatically tunes hyperparameters, evaluates fit (over-/under-fitting),
-and—if the chosen model is overfitted—iteratively simplifies it up to three times.
+- It collects candlestick data across 1h, 2h, 4h, 12h and 1d timeframes,
+- Computes a variety of technical indicators (`SMA`, `RSI`, `MACD`, `ATR`, `Bollinger Bands`, `EWMA`, etc.),
+- Builds classification models (`Logistic Regression`, `Random Forest`, `XGBoost`)
+- to forecast whether the price will go **UP** or **DOWN** in the next 4 hours.
+- It automatically tunes hyperparameters, evaluates fit (over-/under-fitting),
+- and—if the chosen model is overfitted—iteratively simplifies it up to three times.
 
 ## Features ✨
 - Multi-timeframe data merge  
