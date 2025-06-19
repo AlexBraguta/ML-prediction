@@ -35,8 +35,8 @@ This pipeline fetches BTC/USDT candlestick data across 1h, 2h, 4h, 12h and 1d ti
 
 Outputs model summaries and a 4-hour forecast at the end, e.g.:  
 ```shell
-Prediction: The price is likely to go <span style="color: green;">UP</span> in the next 4 hours.  
-Prediction Probability: UP 65.34%, DOWN 34.66%  
+Prediction: The price is likely to go DOWN in the next 4 hours.  
+Prediction Probability: UP 35.34%, DOWN 64.66%  
 2025-03-11 13:50
 ```
 
