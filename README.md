@@ -48,6 +48,8 @@ Prediction Probability: UP 65.34%, DOWN 34.66%
 2025-03-10 13:50
 ```
 
+(if you made it so far, to save you the trouble: best working models are 15 and 17)
+
 ## License 📄
 MIT © 2025
 
