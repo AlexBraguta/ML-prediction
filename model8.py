@@ -1,0 +1,163 @@
+from sklearn.metrics import accuracy_score, classification_report, confusion_matrix, roc_auc_score
+from ta.volatility import average_true_range, bollinger_mavg, bollinger_hband, bollinger_lband
+from sklearn.model_selection import train_test_split, RandomizedSearchCV, TimeSeriesSplit
+from sklearn.linear_model import LogisticRegression
+from sklearn.ensemble import RandomForestClassifier
+from ta.momentum import rsi, stoch, stoch_signal
+from data import display_candles, get_candles
+from imblearn.over_sampling import SMOTE
+from ta.trend import sma_indicator, macd
+import matplotlib.pyplot as plt
+import pandas as pd
+import numpy as np
+import joblib
+
+
+# Load your data (replace 'your_file.csv' with your actual data loading logic)
+df_4h = pd.DataFrame(display_candles(get_candles('BTCUSDT', '4h', 1500)))  # 4-hour candles
+df_1h = pd.DataFrame(display_candles(get_candles('BTCUSDT', '1h', 1500)))  # 1-hour candles
+df_1d = pd.DataFrame(display_candles(get_candles('BTCUSDT', '1d', 1500)))  # 1-day candles
+
+# Convert time columns to datetime
+df_4h['time'] = pd.to_datetime(df_4h['time'], format='%d.%m.%Y %H:%M:%S', dayfirst=True)
+df_1h['time'] = pd.to_datetime(df_1h['time'], format='%d.%m.%Y %H:%M:%S', dayfirst=True)
+df_1d['time'] = pd.to_datetime(df_1d['time'], format='%d.%m.%Y %H:%M:%S', dayfirst=True)
+
+# Merge 4-hour data with 1-hour and 1-day data
+df = df_4h.merge(df_1h, on='time', suffixes=('', '_1h')).merge(df_1d, on='time', suffixes=('', '_1d'))
+
+# Feature Engineering: Add Technical Indicators for 4-hour candles
+df['sma_10'] = sma_indicator(df['close'], window=10)
+df['rsi'] = rsi(df['close'], window=14)
+df['macd'] = macd(df['close'])
+df['atr'] = average_true_range(df['high'], df['low'], df['close'], window=14)
+df['stoch'] = stoch(df['high'], df['low'], df['close'], window=14, smooth_window=3)
+df['stoch_signal'] = stoch_signal(df['high'], df['low'], df['close'], window=14, smooth_window=3)
+df['bb_mavg'] = bollinger_mavg(df['close'], window=20)
+df['bb_hband'] = bollinger_hband(df['close'], window=20)
+df['bb_lband'] = bollinger_lband(df['close'], window=20)
+
+# Add Features from 1-Hour Timeframe
+df['sma_10_1h'] = sma_indicator(df['close_1h'], window=10)
+df['rsi_1h'] = rsi(df['close_1h'], window=14)
+df['atr_1h'] = average_true_range(df['high_1h'], df['low_1h'], df['close_1h'], window=14)
+
+# Add Features from 1-Day Timeframe
+df['sma_10_1d'] = sma_indicator(df['close_1d'], window=10)
+df['rsi_1d'] = rsi(df['close_1d'], window=14)
+df['atr_1d'] = average_true_range(df['high_1d'], df['low_1d'], df['close_1d'], window=14)
+
+# Interaction and Trend Reversal Features
+df['atr_rsi_interaction'] = df['atr'] * df['rsi']
+df['close_macd_diff'] = df['close'] - df['macd']
+df['rsi_change'] = df['rsi'] - df['rsi'].shift(1)
+df['macd_change'] = df['macd'] - df['macd'].shift(1)
+
+# Add Lag Features
+df['lag_close_1'] = df['close'].shift(1)
+df['lag_close_2'] = df['close'].shift(2)
+
+# Add Rolling Statistics
+df['rolling_mean_20'] = df['close'].rolling(window=20).mean()
+df['rolling_std_20'] = df['close'].rolling(window=20).std()
+df['rolling_momentum_20'] = df['close'] - df['close'].shift(20)
+
+# Add Aggregated Features from Higher Timeframes
+df['daily_sma'] = df['close'].rolling(window=6).mean()  # 6 x 4h candles = 1 day
+df['daily_volatility'] = df['close'].rolling(window=6).std()
+
+# Add Exponentially Weighted Moving Averages (EWMA)
+df['ewma_12'] = df['close'].ewm(span=12, adjust=False).mean()
+df['ewma_26'] = df['close'].ewm(span=26, adjust=False).mean()
+df['ewma_diff'] = df['ewma_12'] - df['ewma_26']
+
+# Drop rows with NaN values caused by lag or rolling operations
+df = df.dropna()
+
+# Target Variable: Predict whether the price will go up (1) or down (0)
+df['target'] = (df['close'].shift(-1) > df['close']).astype(int)
+
+# Drop rows with undefined target values
+df = df.dropna()
+
+# Select Important Features Based on Previous Analysis
+important_features = [
+    'rsi_change', 'stoch', 'stoch_signal', 'macd_change', 'atr', 'rolling_std_20',
+    'rolling_momentum_20', 'rsi', 'macd', 'lag_close_2', 'daily_sma', 'daily_volatility',
+    'ewma_12', 'ewma_26', 'ewma_diff',
+    'sma_10_1h', 'rsi_1h', 'atr_1h',  # Features from 1-hour timeframe
+    'sma_10_1d', 'rsi_1d', 'atr_1d'   # Features from 1-day timeframe
+]
+X = df[important_features]
+y = df['target']
+
+# Split the data into training and testing sets
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, shuffle=False)
+
+# Handle Class Imbalance using SMOTE
+smote = SMOTE()
+X_train_balanced, y_train_balanced = smote.fit_resample(X_train, y_train)
+
+# Hyperparameter Optimization for Random Forest
+param_dist_lr = {
+    'n_estimators': [50, 100, 200, 500],
+    'max_depth': [3, 5, 10, None],
+    'min_samples_split': [2, 5, 10],
+    'min_samples_leaf': [1, 2, 4],
+    'bootstrap': [True, False]
+}
+
+random_search = RandomizedSearchCV(estimator=RandomForestClassifier(random_state=42),
+                                   param_distributions=param_dist_lr,
+                                   n_iter=100,
+                                   cv=TimeSeriesSplit(n_splits=3),
+                                   scoring='accuracy',
+                                   random_state=42,
+                                   verbose=2)
+random_search.fit(X_train_balanced, y_train_balanced)
+best_model = random_search.best_estimator_
+
+# Ensemble with Logistic Regression
+lr_model = LogisticRegression(class_weight='balanced', max_iter=500)
+lr_model.fit(X_train_balanced, y_train_balanced)
+
+from sklearn.ensemble import VotingClassifier
+ensemble_model = VotingClassifier(estimators=[
+    ('rf', best_model),
+    ('lr', lr_model)
+], voting='soft')
+ensemble_model.fit(X_train_balanced, y_train_balanced)
+
+# Evaluate the ensemble model on the test set
+y_pred = ensemble_model.predict(X_test)
+y_pred_proba = ensemble_model.predict_proba(X_test)[:, 1]
+
+accuracy = accuracy_score(y_test, y_pred)
+roc_auc = roc_auc_score(y_test, y_pred_proba)
+print(f"Accuracy: {accuracy:.2f}")
+print(f"AUC-ROC: {roc_auc:.2f}")
+print("Classification Report:")
+print(classification_report(y_test, y_pred))
+print("Confusion Matrix:")
+print(confusion_matrix(y_test, y_pred))
+
+# Feature Importance from Random Forest
+importances = best_model.feature_importances_
+indices = np.argsort(importances)[::-1]
+features = X.columns
+
+plt.figure(figsize=(10, 6))
+plt.title("Feature Importance")
+plt.bar(range(X.shape[1]), importances[indices], align="center")
+plt.xticks(range(X.shape[1]), features[indices], rotation=90)
+plt.show()
+
+# Adjust Decision Threshold
+thresholds = np.arange(0.4, 0.61, 0.02)
+for threshold in thresholds:
+    y_pred_custom = (y_pred_proba > threshold).astype(int)
+    custom_accuracy = accuracy_score(y_test, y_pred_custom)
+    print(f"Threshold: {threshold:.2f}, Accuracy: {custom_accuracy:.2f}")
+
+# Optional: Save the model
+joblib.dump(ensemble_model, 'best_ensemble_model.pkl')
