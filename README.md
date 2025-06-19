@@ -37,7 +37,7 @@ Outputs model summaries and a 4-hour forecast at the end, e.g.:
 ```shell
 Prediction: The price is likely to go UP in the next 4 hours.  
 Prediction Probability: UP 65.34%, DOWN 34.66%  
-2025-06-19 13:50:02.123456
+2025-03-11 13:50
 ```
 
 ## License 📄
